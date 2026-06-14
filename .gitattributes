@@ -3,6 +3,13 @@
 ###############################################################################
 * text=auto
 
+# Container-side files MUST stay LF; CRLF will break shebang in busybox sh
+docker/*.sh   text eol=lf
+docker/*.conf text eol=lf
+docker/*.json text eol=lf
+docker/Dockerfile text eol=lf
+docker/docker-compose.yml text eol=lf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #
