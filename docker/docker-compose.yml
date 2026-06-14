@@ -1,0 +1,27 @@
+services:
+  translate-proxy:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: translate-proxy:latest
+    container_name: translate-proxy
+    network_mode: host
+    restart: always
+    environment:
+      TZ: Asia/Shanghai
+      # 全部可选，默认值见 spec/updater.sh
+      # HEALTH_CHECK_INTERVAL: 4h
+      # HEALTH_CHECK_TIMEOUT: 5
+      # HEALTH_CHECK_FAIL_THRESHOLD: 2
+      # SCAN_TIMEOUT: 4
+      # SCAN_CONCURRENCY: 80
+      # SCAN_LIMIT: 5
+      # SCAN_COOLDOWN: 10m
+      # HOSTS: "translate.googleapis.com,translate.google.com,translate-pa.googleapis.com"
+    volumes:
+      - ../data:/var/lib/translate-proxy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
