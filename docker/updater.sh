@@ -102,8 +102,10 @@ rescan_and_apply() {
         log "ERROR scanner did not produce ip.txt"
         return 1
     fi
-    best=$(head -n 1 "$SCANNER_IP_TXT" | tr -d '\r\n ')
-    backups=$(tail -n +2 "$SCANNER_IP_TXT" | head -n 4 | tr -d '\r' | grep -v '^$' || true)
+    # 用正则只抽合法 IPv4，规避 BOM/全角/CRLF 等不可见字符污染 nginx 配置。
+    # ip.txt 实测可能带 UTF-8 BOM（EF BB BF），直接 tr 清不掉非 ASCII 字节。
+    best=$(grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' "$SCANNER_IP_TXT" | head -n 1)
+    backups=$(grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' "$SCANNER_IP_TXT" | tail -n +2 | head -n 4)
     if [ -z "$best" ]; then
         log "ERROR no usable ip in ip.txt"
         return 1
