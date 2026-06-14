@@ -70,3 +70,50 @@ cooldown_passed() {
     now=$(date +%s)
     [ $((now - last)) -ge "$cooldown_sec" ]
 }
+
+# ---- 重写 nginx upstream.conf ----
+# 第 1 个参数：主 IP；第 2 个参数：以换行分隔的 backup IP 列表（可空）。
+write_upstream_conf() {
+    primary="$1"
+    backups="$2"
+    {
+        echo "upstream google_translate {"
+        echo "    server $primary:443 max_fails=3 fail_timeout=30s;"
+        # 如果 backup IP 集合非空，逐行写入
+        echo "$backups" | while IFS= read -r b; do
+            [ -n "$b" ] && echo "    server $b:443 backup;"
+        done
+        echo "}"
+    } > "$UPSTREAM_CONF.tmp"
+    mv "$UPSTREAM_CONF.tmp" "$UPSTREAM_CONF"
+}
+
+# ---- 触发一次扫描，把结果应用到 nginx ----
+rescan_and_apply() {
+    log "=== triggering rescan ==="
+    cd "$SCANNER_DIR" || { log "ERROR cannot cd $SCANNER_DIR"; return 1; }
+    rm -f "$SCANNER_IP_TXT"
+    # -s = 进入扫描模式
+    if ! "$SCANNER_BIN" -s; then
+        log "ERROR scanner exited non-zero"
+        return 1
+    fi
+    if [ ! -s "$SCANNER_IP_TXT" ]; then
+        log "ERROR scanner did not produce ip.txt"
+        return 1
+    fi
+    best=$(head -n 1 "$SCANNER_IP_TXT" | tr -d '\r\n ')
+    backups=$(tail -n +2 "$SCANNER_IP_TXT" | head -n 4 | tr -d '\r' | grep -v '^$' || true)
+    if [ -z "$best" ]; then
+        log "ERROR no usable ip in ip.txt"
+        return 1
+    fi
+    write_upstream_conf "$best" "$backups"
+    if ! nginx -s reload; then
+        log "ERROR nginx reload failed"
+        return 1
+    fi
+    echo "$best" > "$CURRENT_IP_FILE"
+    date +%s > "$LAST_SCAN_FILE"
+    log "=== applied new ip=$best (backups: $(echo "$backups" | tr '\n' ' '))==="
+}
