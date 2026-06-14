@@ -46,3 +46,27 @@ to_seconds() {
 }
 
 log "boot: HEALTH_CHECK_INTERVAL=$HEALTH_CHECK_INTERVAL FAIL_THRESHOLD=$HEALTH_CHECK_FAIL_THRESHOLD COOLDOWN=$SCAN_COOLDOWN"
+
+# ---- 健康检查 ----
+# 用 curl --resolve 把 PRIMARY_HOST 强制解析到给定 IP，
+# 只看返回是否包含 "Hello"——和 .NET 扫描器探活逻辑一致。
+check_health() {
+    ip="$1"
+    [ -z "$ip" ] && return 1
+    out=$(curl -sk \
+              --resolve "$PRIMARY_HOST:443:$ip" \
+              --max-time "$HEALTH_CHECK_TIMEOUT" \
+              "https://$PRIMARY_HOST/translate_a/single?client=gtx&sl=zh-CN&tl=en&dt=t&q=%E4%BD%A0%E5%A5%BD" \
+              2>/dev/null || true)
+    echo "$out" | grep -q "Hello"
+}
+
+# ---- 扫描冷却 ----
+# 距上次成功扫描 < SCAN_COOLDOWN 时跳过，防止 IP 抖动期反复触发扫描烧机器。
+cooldown_passed() {
+    [ ! -f "$LAST_SCAN_FILE" ] && return 0
+    last=$(cat "$LAST_SCAN_FILE")
+    cooldown_sec=$(to_seconds "$SCAN_COOLDOWN")
+    now=$(date +%s)
+    [ $((now - last)) -ge "$cooldown_sec" ]
+}
