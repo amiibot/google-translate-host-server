@@ -117,3 +117,40 @@ rescan_and_apply() {
     date +%s > "$LAST_SCAN_FILE"
     log "=== applied new ip=$best (backups: $(echo "$backups" | tr '\n' ' '))==="
 }
+
+# ---- 首次启动若没有 current_ip 立即扫一次 ----
+bootstrap_if_needed() {
+    if [ ! -s "$CURRENT_IP_FILE" ]; then
+        log "bootstrap: no current_ip, performing initial scan"
+        if ! rescan_and_apply; then
+            log "bootstrap: initial scan failed; will retry on next cycle"
+        fi
+    else
+        log "bootstrap: reusing current_ip=$(cat "$CURRENT_IP_FILE")"
+    fi
+}
+
+# ---- 主循环 ----
+bootstrap_if_needed
+
+while true; do
+    cur=$(cat "$CURRENT_IP_FILE" 2>/dev/null || true)
+    if [ -n "$cur" ] && check_health "$cur"; then
+        echo 0 > "$FAIL_FILE"
+        log "OK current_ip=$cur"
+    else
+        n=$(( $(cat "$FAIL_FILE") + 1 ))
+        echo "$n" > "$FAIL_FILE"
+        log "WARN health-check failed (#$n) for ip=${cur:-<none>}"
+        if [ "$n" -ge "$HEALTH_CHECK_FAIL_THRESHOLD" ]; then
+            if cooldown_passed; then
+                if rescan_and_apply; then
+                    echo 0 > "$FAIL_FILE"
+                fi
+            else
+                log "in cooldown ($SCAN_COOLDOWN since last scan), skip"
+            fi
+        fi
+    fi
+    sleep "$HEALTH_CHECK_INTERVAL"
+done
