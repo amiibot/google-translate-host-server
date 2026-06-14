@@ -94,10 +94,10 @@ rescan_and_apply() {
     cd "$SCANNER_DIR" || { log "ERROR cannot cd $SCANNER_DIR"; return 1; }
     rm -f "$SCANNER_IP_TXT"
     # -s = 进入扫描模式
-    if ! "$SCANNER_BIN" -s; then
-        log "ERROR scanner exited non-zero"
-        return 1
-    fi
+    # 注意：扫描器在写完 ip.txt 后会用 Console.ReadKey 询问"是否设置 hosts"，
+    # 容器里没有 TTY 会崩溃返回非零；但 ip.txt 此刻已写好。
+    # 因此不依赖退出码，只看 ip.txt 是否生成、是否非空。
+    "$SCANNER_BIN" -s || log "WARN scanner exited non-zero (likely TTY prompt aborted, ip.txt may still be valid)"
     if [ ! -s "$SCANNER_IP_TXT" ]; then
         log "ERROR scanner did not produce ip.txt"
         return 1
