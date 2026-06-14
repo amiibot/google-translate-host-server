@@ -1,0 +1,13 @@
+# 仅把扫描器源码 + docker 资源拷进构建上下文
+**/.git
+**/.vs
+**/bin
+**/obj
+**/*.user
+data
+docs
+*.md
+LICENSE.txt
+src/GoogleTranslateIpCheck/GoogleTranslateIpCheck/ip.txt
+src/GoogleTranslateIpCheck/GoogleTranslateIpCheck/IPv6.txt
+src/GoogleTranslateIpCheck/GoogleTranslateIpCheck/fullIp.txt
