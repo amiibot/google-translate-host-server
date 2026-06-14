@@ -65,6 +65,23 @@ docker logs -f translate-proxy
 
 启动后看到 `[apply] new ip=...` 与 `[updater] OK current_ip=...` 即成功。
 
+### 服务器 443 已被占用？走 IP alias 方案
+
+如果服务器 / 虚拟机的 443 已被其他服务占用且不能停（例如 NAS 管理面板），可以：
+
+1. 给虚拟机网卡多绑一个 LAN 内空闲 IP（例如 `192.168.1.250`）。Hyper-V 还需在虚拟交换机上为该 VM 网卡 `Set-VMNetworkAdapter -MacAddressSpoofing On`，否则别名 IP 在 LAN 上不可达。
+2. Linux 侧用 netplan 持久化别名 IP：在 `/etc/netplan/*.yaml` 的 `addresses` 里追加 `- 192.168.1.250/24`，`sudo netplan apply`。
+3. 编辑 `docker/docker-compose.bind-ip.yml`，把里面的 `192.168.1.250` 换成你实际用的别名 IP，然后用 override 启动：
+
+```bash
+docker compose \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.bind-ip.yml \
+  up -d --build
+```
+
+容器只绑到那个别名 IP 的 443，原 443 服务不受影响。客户端 hosts 也写这个别名 IP。
+
 ### 客户端 (Win10/11) 配置
 
 以管理员身份编辑 `C:\Windows\System32\drivers\etc\hosts`，末尾追加（把 `192.168.x.y` 换成服务器 LAN IP）：

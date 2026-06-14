@@ -1,0 +1,14 @@
+# 用法：当宿主 443 已被占用、走"VM 第二 IP + IP alias"方案时叠加这个 override。
+#
+#   docker compose \
+#     -f docker/docker-compose.yml \
+#     -f docker/docker-compose.bind-ip.yml \
+#     up -d --build
+#
+# 把下面的 192.168.1.250 改成你为 VM 网卡新增的那个别名 IP。
+services:
+  translate-proxy:
+    # 取消主 compose 里的 host 网络模式，改用 bridge + ports
+    network_mode: bridge
+    ports:
+      - "192.168.1.250:443:443"
