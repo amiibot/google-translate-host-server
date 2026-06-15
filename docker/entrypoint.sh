@@ -4,6 +4,7 @@ set -eu
 : "${SCAN_TIMEOUT:=4}"
 : "${SCAN_CONCURRENCY:=80}"
 : "${SCAN_LIMIT:=5}"
+: "${LISTEN_ADDR:=0.0.0.0}"
 
 CONFIG=/opt/scanner/config.json
 
@@ -20,6 +21,12 @@ patch_config "扫描并发数"      "$SCAN_CONCURRENCY"
 patch_config "IP扫描限制数量"  "$SCAN_LIMIT"
 
 echo "[entrypoint] scanner config patched: 扫描超时=$SCAN_TIMEOUT 扫描并发数=$SCAN_CONCURRENCY IP扫描限制数量=$SCAN_LIMIT"
+
+# 替换 nginx.conf 中的 LISTEN_ADDR 占位符为实际监听地址
+# 默认 0.0.0.0（所有网卡）；当宿主 443 被 tailscale 等服务占用时，
+# 设为具体 LAN IP（如 192.168.1.96）让 nginx 只绑该 IP 的 443
+sed -i "s/LISTEN_ADDR:443/$LISTEN_ADDR:443/" /etc/nginx/nginx.conf
+echo "[entrypoint] nginx listen addr=$LISTEN_ADDR:443"
 
 # 启动 nginx（后台），失败立即退出
 nginx -g "daemon off;" &

@@ -65,13 +65,12 @@ docker logs -f translate-proxy
 
 启动后看到 `[apply] new ip=...` 与 `[updater] OK current_ip=...` 即成功。
 
-### 服务器 443 已被占用？走 IP alias 方案
+### 服务器 443 已被占用？走 bind-ip 方案
 
-如果服务器 / 虚拟机的 443 已被其他服务占用且不能停（例如 NAS 管理面板），可以：
+如果服务器的 443 被 tailscale 等服务占用且不能停，可以：
 
-1. 给虚拟机网卡多绑一个 LAN 内空闲 IP（例如 `192.168.1.250`）。Hyper-V 还需在虚拟交换机上为该 VM 网卡 `Set-VMNetworkAdapter -MacAddressSpoofing On`，否则别名 IP 在 LAN 上不可达。
-2. Linux 侧用 netplan 持久化别名 IP：在 `/etc/netplan/*.yaml` 的 `addresses` 里追加 `- 192.168.1.250/24`，`sudo netplan apply`。
-3. 编辑 `docker/docker-compose.bind-ip.yml`，把里面的 `192.168.1.250` 换成你实际用的别名 IP，然后用 override 启动：
+1. 编辑 `docker/docker-compose.bind-ip.yml`，把 `LISTEN_ADDR` 改成你想让客户端连接的 LAN IP（例如 `192.168.1.96`）。nginx 将只监听该 IP 的 443，不与 tailscale 冲突。
+2. 用 override 启动：
 
 ```bash
 docker compose \
@@ -80,7 +79,7 @@ docker compose \
   up -d --build
 ```
 
-容器只绑到那个别名 IP 的 443，原 443 服务不受影响。客户端 hosts 也写这个别名 IP。
+容器以 host 网络模式运行（扫描器流量经过 mihomo TUN 出网），nginx 只绑到指定 IP 的 443。客户端 hosts 写这个 IP。
 
 ### 客户端 (Win10/11) 配置
 

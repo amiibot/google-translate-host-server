@@ -1,14 +1,17 @@
-# 用法：当宿主 443 已被占用、走"VM 第二 IP + IP alias"方案时叠加这个 override。
+# 用法：当宿主 443 被 tailscale 等服务占用时叠加这个 override。
 #
 #   docker compose \
 #     -f docker/docker-compose.yml \
 #     -f docker/docker-compose.bind-ip.yml \
 #     up -d --build
 #
-# 把下面的 192.168.1.250 改成你为 VM 网卡新增的那个别名 IP。
+# 原理：主 compose 使用 network_mode: host（容器共享宿主网络栈），
+# 使扫描器流量经过 mihomo TUN 出网。但 nginx 默认 listen 0.0.0.0:443
+# 会与 tailscale 等绑定特定 IP:443 的服务冲突。
+# 本 override 让 nginx 只监听指定 LAN IP 的 443，避免端口冲突。
+#
+# 把下面的 192.168.1.96 改成你实际想让客户端连接的 LAN IP。
 services:
   translate-proxy:
-    # 取消主 compose 里的 host 网络模式，改用 bridge + ports
-    network_mode: bridge
-    ports:
-      - "192.168.1.250:443:443"
+    environment:
+      LISTEN_ADDR: "192.168.1.96"
